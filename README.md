@@ -7,7 +7,7 @@ Basics
 -------
 Here I introduce how to use VCParser by writing a binary number parser.
 
-* To create a parser that accepts only the '0' char,
+* To create a parser that accepts only '0' (a character),
 ~~~~~
 zero = takeChar('0')
 ~~~~~
@@ -30,7 +30,7 @@ mk_PARSED(mk_ERROR("Expected '0'"), "101")
 ~~~~~
 which says it couldn't parse the input and "1001" is remained.
 
-* To create a parser that accepts only the "1" string,
+* To create a parser that accepts only "1" (a string),
 ~~~~~
 one = takeString("1")
 ~~~~~
