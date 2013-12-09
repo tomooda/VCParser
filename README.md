@@ -5,120 +5,192 @@ A little combinatory parser in VDM-SL
 
 Basics
 -------
+Here I introduce how to use VCParser by writing a binary number parser.
 
-* To create a parser that accepts only "abc",
+* To create a parser that accepts only the '0' char,
 ~~~~~
-takeString("abc")
+zero = takeChar('0')
 ~~~~~
-will take a string (seq of char, in VDM-SL) and returns a PARSED value in the form of either
+will take a string (seq of char, in VDM-SL) and returns a PARSED value, for example,
 ~~~~~
-mk_PARSED(mk_ERROR(message), rest)
+zero("011")
 ~~~~~
-where the "rest" component indicates where the parser failed, or
+will return
 ~~~~~
-mk_PARSED(mk_TREE(label, components), rest)
+mk_PARSED(mk_TREE(nil, "0"), "11")
 ~~~~~
-where the mk_TREE is the parse tree and the "rest" is the remained substring of the source string after the parse.
-For example, 
+which says it parsed the input into a tree of "0" and "110" is remained.
+If failed,
 ~~~~~
-takeString("abc")("abcdefxyz")
+zero("101")
 ~~~~~
 will result in
 ~~~~~
-mk_PARSED(mk_TREE(nil, "abc"), "defxyz")
+mk_PARSED(mk_ERROR("Expected '0'"), "101")
 ~~~~~
-and
-~~~~~
-takeString("abc")("defxyz")
-~~~~~
-will result in
-~~~~~
-mk_PARSED(mk_ERROR("Expected 'a'"), "defxyz")
-~~~~~
+which says it couldn't parse the input and "1001" is remained.
 
-
-* To create a parser that accepts "abc" trimming blanks around it,
+* To create a parser that accepts only the "1" string,
 ~~~~~
-trimBlanks(takeString("abc"))
+one = takeString("1")
 ~~~~~
-is the function, for example,
-~~~~~
-trimBlanks(takeString("abc"))(" abc def xyz ")
-~~~~~
-will result in
-~~~~~
-mk_PARSED(mk_TREE(nil, "abc"), "def xyz ")
-~~~~~
-
-* To create a parser that accepts either "abc" and "def",
-~~~~~
-either([takeString("abc"), takeString("def")])
-~~~~~
-will be the one.
 For example,
 ~~~~~
-either([takeString("abc"), takeString("def")])("abcdefxyz")
+one("101")
 ~~~~~
-will result in
+will return
 ~~~~~
-mk_PARSED(mk_TREE(nil, "abc"), "defxyz")
-~~~~~
-
-* To create a parser that accepts "abc" and then "def" with trimming the surrounding blanks,
-~~~~~
-series([trimBlanks(takeString("abc")), trimBlanks(takeString("def"))])
-~~~~~
-is the function, for example,
-~~~~~
-series([trimBlanks(takeString("abc")), trimBlanks(takeString("def"))])(" abc  defxyz")
-~~~~~
-will result in
-~~~~~
-mk_PARSED(mk_TREE(nil, [mk_TREE(nil, "abc"), mk_TREE(nil, "def")]), "xyz")
+mk_PARSED(mk_TREE(nil, "1"), "01")
 ~~~~~
 
-* To create a parser that accepts any number of repeated "abc" (so-called "*"),
+* To create a parser that accepts either 0 or 1 (aka "/"),
 ~~~~~
-star(takeString("abc"))
+bin = either([zero, one])
 ~~~~~
-is the function, for example,
+For example,
 ~~~~~
-star(takeString("abc"))("abcabcxyz")
+mk_(
+  bin("101"),
+  bin("011")
+)
 ~~~~~
-will result in
+will return
 ~~~~~
-mk_PARSED(mk_TREE(nil, [mk_TREE(nil, "abc"), mk_TREE(nil, "abc")]), "xyz")
+mk_(
+  mk_PARSED(mk_TREE(nil, "1"), "01"),
+  mk_PARSED(mk_TREE(nil, "0"), "11")
+)
 ~~~~~
 
-* To create a parser that optionally accepts "abc" (so-called "[]"),
+* To create a parser that accepts a repeated series of binary digits (aka "*"),
 ~~~~~
-option(takeString("abc"))
+binStar = star(bin)
 ~~~~~
-is the function, for example,
+For example,
 ~~~~~
-option(takeString("abc"))("abcdefxyz")
+mk_(
+  binStar("101"),
+  binStar("")
+)
 ~~~~~
-will result in
+will return
 ~~~~~
-mk_PARSED(mk_TREE(nil, "abc"), "defxyz")
+mk_(
+  mk_PARSED(mk_TREE(nil, [mk_TREE(nil, "1"), mk_TREE(nil, "0"), mk_TREE(nil, "1")]), []),
+  mk_PARSED(mk_TREE(nil, []), [])
+)
 ~~~~~
-and
-~~~~~
-option(takeString("abc"))("defxyz")
-~~~~~
-will result in
-~~~~~
-mk_PARSED(mk_TREE(nil, []), "defxyz")
-~~~~~
-Please note that the result above is not an error but it successfully accepted an empty substring from the given string.
+Please note that the second value in the result pair is NOT an error.
 
-* To change an error message of a parser, the "iferror" combinator is your friend.
+* To create a parser that accepts a binary digit and then the binStar (aka ","),
 ~~~~~
-iferror("I knew!", takeString("abc"))("xyz")
+binPlus = series([bin, binStar])
 ~~~~~
-will result in
+For example,
 ~~~~~
-mk_PARSED(mk_ERROR("I knew!"), "xyz")
+mk_(
+  binPlus("1001"),
+  binPlus("")
+)
+~~~~~
+will return
+~~~~~
+mk_(
+  mk_PARSED(mk_TREE(nil, [mk_TREE(nil, "1"), mk_TREE(nil, [mk_TREE(nil, "0"), mk_TREE(nil, "1")])]), []), 
+  mk_PARSED(mk_ERROR("Unexpected EOF"), [])
+)
+~~~~~
+
+* To create a parser that optionally accepts "0b" prefix before a series of binary digits (aka "[]"),
+~~~~~
+binary = series([option(takeString("0b")), binPlus])
+~~~~~
+For example,
+~~~~~
+mk_(
+  binary("0b10"),
+  binary("10"),
+  binary("0x10")
+)
+~~~~~
+will return
+~~~~~
+mk_(
+  mk_PARSED(mk_TREE(nil, [mk_TREE(nil, "0b"), mk_TREE(nil, [mk_TREE(nil, "1"), mk_TREE(nil, [mk_TREE(nil, "0")])])]), []),
+  mk_PARSED(mk_TREE(nil, [mk_TREE(nil, []), mk_TREE(nil, [mk_TREE(nil, "1"), mk_TREE(nil, [mk_TREE(nil, "0")])])]), []),
+  mk_PARSED(mk_TREE(nil, [mk_TREE(nil, []), mk_TREE(nil, [mk_TREE(nil, "0"), mk_TREE(nil, [])])]), "x10")
+)
+~~~~~
+
+* To create a parser that accepts a binary number trimming blanks around it,
+~~~~~
+binaryTerm = trimBlanks(binary)
+~~~~~
+For example,
+~~~~~
+binaryTerm(" 0b10 1")
+~~~~~
+will return
+~~~~~
+mk_PARSED(mk_TREE(nil, [mk_TREE(nil, "0b"), mk_TREE(nil, [mk_TREE(nil, "1"), mk_TREE(nil, [mk_TREE(nil, "0")])])]), "1")
+~~~~~
+
+* To obtain a flatten tree from compound parser
+~~~~~
+flatBinStar = concat(binStar)
+~~~~~
+For example,
+~~~~~
+mk_(
+  binStar("101"),
+  flatBinStar("101")
+)
+~~~~~
+will return
+~~~~~
+mk_(
+  mk_PARSED(mk_TREE(nil, [mk_TREE(nil, "1"), mk_TREE(nil, "0"), mk_TREE(nil, "1")]), []),
+  mk_PARSED(mk_TREE(nil, "101"), [])
+)
+~~~~~
+
+* To change an error message,
+~~~~~
+bin2 = iferror("Accepts only 0 or 1", bin)
+~~~~~
+For example,
+~~~~~
+mk_(
+	bin2("101"),
+  bin2("210")
+)
+~~~~~
+will return
+~~~~~
+mk_(
+  mk_PARSED(mk_TREE(nil, "1"), "01"), 
+  mk_PARSED(mk_ERROR("Accepts only 0 or 1"), "210")
+)
+~~~~~
+
+* To modify a parsed tree,
+~~~~~
+translate = transtree(lambda tree:TREE & cases tree:
+  mk_TREE(-, "0") -> mk_TREE(nil, "zero"),
+  mk_TREE(-, "1") -> mk_TREE(nil, "one") end, bin)
+~~~~~
+For example,
+~~~~~
+mk_(
+	translate("0"),
+  translate("1")
+)
+~~~~~
+will return
+~~~~~
+mk_(
+  mk_PARSED(mk_TREE(nil, "zero"), []),
+  mk_PARSED(mk_TREE(nil, "one"), []))
 ~~~~~
 
 There are a bunch of other useful combinators and minimal parsers, such as any, digit, alphabet and so on.
