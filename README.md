@@ -40,6 +40,7 @@ mk_PARSED(mk_ERROR("Expected 'a'"), "defxyz")
 * To create a parser that accepts "abc" trimming blanks around it,
 ~~~~~
 trimBlanks(takeString("abc"))
+~~~~~
 is the function, for example,
 ~~~~~
 trimBlanks(takeString("abc"))(" abc def xyz ")
@@ -117,7 +118,7 @@ iferror("I knew!", takeString("abc"))("xyz")
 ~~~~~
 will result in
 ~~~~~
-iferror("I knew!", takeString("abc"))("xyz")
+mk_PARSED(mk_ERROR("I knew!"), "xyz")
 ~~~~~
 
 There are a bunch of other useful combinators and minimal parsers, such as any, digit, alphabet and so on.
