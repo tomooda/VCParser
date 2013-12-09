@@ -190,7 +190,8 @@ will return
 ~~~~~
 mk_(
   mk_PARSED(mk_TREE(nil, "zero"), []),
-  mk_PARSED(mk_TREE(nil, "one"), []))
+  mk_PARSED(mk_TREE(nil, "one"), [])
+)
 ~~~~~
 
 There are a bunch of other useful combinators and minimal parsers, such as any, digit, alphabet and so on.
