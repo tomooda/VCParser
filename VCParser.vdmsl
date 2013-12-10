@@ -4,6 +4,7 @@ VCParser
 Author: Tomohiro Oda
 Version: 0.01
 License: the MIT License
+
 Copyright (c) 2013 Tomohiro Oda and Software Research Associates, Inc.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -28,147 +29,146 @@ THE SOFTWARE.
 exports all
 definitions
 types
-	SOURCE = seq of char;
+    SOURCE = seq of char;
     ERROR :: message:seq of char;
     LABEL = [seq of char];
     TREE :: label : LABEL contents : seq of TREE | seq of char;
     PARSED :: parsed : (TREE | ERROR) remaining : SOURCE;
-	PARSER = SOURCE -> PARSED;
+    PARSER = SOURCE -> PARSED;
 
 values
     /***
     messages
     ***/
-	UNEXPECTED_EOF = "Unexpected EOF";
-	UNEXPECTED = "Unexpected ";
+    UNEXPECTED_EOF = "Unexpected EOF";
+    UNEXPECTED = "Unexpected ";
     EXPECTED = "Expected ";
     
-	/***
+    /***
     parsers
     ***/
     any = lambda source:SOURCE &
-    	cases source:
-        	[] -> mk_PARSED(mk_ERROR(UNEXPECTED_EOF), source),
-			others -> mk_PARSED(mk_TREE(nil, [hd source]), tl source)
+        cases source:
+            [] -> mk_PARSED(mk_ERROR(UNEXPECTED_EOF), source),
+            others -> mk_PARSED(mk_TREE(nil, [hd source]), tl source)
         end;
 
-	digit = label("digit", either([takeChar("0123456789"(index)) | index in set {1,...,10}]));
-	lowerAlphabet = label("lowerAlphabet", either([takeChar("abcdefghijklmnopqrstuvwxyz"(index)) | index in set {1,...,26}]));
-	upperAlphabet = label("upperAlphabet", either([takeChar("ABCDEFGHIJKLMNOPQRSTUVWXYZ"(index)) | index in set {1,...,26}]));
-	alphabet = label("alphabet", either([lowerAlphabet, upperAlphabet]));
+        digit = label("digit", either([takeChar("0123456789"(index)) | index in set {1,...,10}]));
+        lowerAlphabet = label("lowerAlphabet", either([takeChar("abcdefghijklmnopqrstuvwxyz"(index)) | index in set {1,...,26}]));
+        upperAlphabet = label("upperAlphabet", either([takeChar("ABCDEFGHIJKLMNOPQRSTUVWXYZ"(index)) | index in set {1,...,26}]));
+        alphabet = label("alphabet", either([lowerAlphabet, upperAlphabet]));
 
-	natnum = label("nat",
-    	concat(series([
-        	concat(series([pass(fail(takeChar('0'))),digit])),
+        natnum = label("nat",
+        concat(series([
+            concat(series([pass(fail(takeChar('0'))),digit])),
             concat(star(digit))])));
     integer = label("int",
-    	concat(series([option(takeChar('-')), natnum])))
+        concat(series([option(takeChar('-')), natnum])))
 
 functions    
-	/***
+    /***
     parser generators
     ***/
-	takeChar : char -> PARSER
-	takeChar(c) == lambda source : SOURCE &
-       cases source:
-       		[] -> mk_PARSED(mk_ERROR(UNEXPECTED_EOF), source),
-	    	others -> if hd source = c then mk_PARSED(mk_TREE(nil, [c]), tl source) else  mk_PARSED(mk_ERROR(EXPECTED^"'"^[c]^"'"), source)
+    takeChar : char -> PARSER
+    takeChar(c) == lambda source : SOURCE &
+        cases source:
+           [] -> mk_PARSED(mk_ERROR(UNEXPECTED_EOF), source),
+           others -> if hd source = c then mk_PARSED(mk_TREE(nil, [c]), tl source) else  mk_PARSED(mk_ERROR(EXPECTED^"'"^[c]^"'"), source)
         end;
     
     takeString : seq1 of char -> PARSER
     takeString(string) ==
-    	concat(series([takeChar(string(index)) | index in set inds string]));
+        concat(series([takeChar(string(index)) | index in set inds string]));
 
     /***
     parser combinators
     ***/
-	series : seq1 of PARSER -> PARSER
+    series : seq1 of PARSER -> PARSER
     series(parsers) == lambda source: SOURCE &
-    	let mk_PARSED(tree1, source1) = (hd parsers)(source) in
-        	cases mk_(tree1, tl parsers):
-            	mk_(mk_ERROR(msg), -) -> mk_PARSED(tree1, source1),
+        let mk_PARSED(tree1, source1) = (hd parsers)(source) in
+            cases mk_(tree1, tl parsers):
+                mk_(mk_ERROR(msg), -) -> mk_PARSED(tree1, source1),
                 mk_(-, []) -> mk_PARSED(mk_TREE(nil, [tree1]), source1),
                 mk_(-, rest) ->
-                	let mk_PARSED(tree2, source2) = series(rest)(source1) in
-                		cases tree2:
-                    		mk_TREE(-, trees2) -> mk_PARSED(mk_TREE(nil, [tree1]^trees2), source2),
+                    let mk_PARSED(tree2, source2) = series(rest)(source1) in
+                        cases tree2:
+                            mk_TREE(-, trees2) -> mk_PARSED(mk_TREE(nil, [tree1]^trees2), source2),
                             mk_ERROR(message) -> mk_PARSED(tree2, source2)
-                     	end
+                        end
             end;
 
-	either : seq1 of PARSER -> PARSER
+    either : seq1 of PARSER -> PARSER
     either(parsers) == lambda source: SOURCE &
-    	let mk_PARSED(tree1, source1) = (hd parsers)(source) in
-        	cases mk_(tree1, tl parsers):
-            	mk_(mk_ERROR(msg), []) -> mk_PARSED(tree1, source1),
-            	mk_(mk_ERROR(msg), -) -> either(tl parsers)(source),
+        let mk_PARSED(tree1, source1) = (hd parsers)(source) in
+            cases mk_(tree1, tl parsers):
+                mk_(mk_ERROR(msg), []) -> mk_PARSED(tree1, source1),
+                mk_(mk_ERROR(msg), -) -> either(tl parsers)(source),
                 mk_(tree, rest) -> mk_PARSED(tree1, source1)
             end;
 
     star : PARSER -> PARSER
     star(parser) == lambda source: SOURCE &
-    	cases parser(source):
-        	mk_PARSED(mk_ERROR(-), -) -> mk_PARSED(mk_TREE(nil, []), source),
+        cases parser(source):
+            mk_PARSED(mk_ERROR(-), -) -> mk_PARSED(mk_TREE(nil, []), source),
             mk_PARSED(tree, rest) ->
-            	let mk_PARSED(mk_TREE(-, trees), source2) = star(parser)(rest) in
-                	mk_PARSED(mk_TREE(nil, [tree]^trees), source2)
+                let mk_PARSED(mk_TREE(-, trees), source2) = star(parser)(rest) in
+                    mk_PARSED(mk_TREE(nil, [tree]^trees), source2)
             end;
 
-	option : PARSER -> PARSER
+    option : PARSER -> PARSER
     option(parser) == lambda source:SOURCE &
-    	cases parser(source):
-        	mk_PARSED(mk_ERROR(-), -) -> mk_PARSED(mk_TREE(nil, []), source),
+        cases parser(source):
+            mk_PARSED(mk_ERROR(-), -) -> mk_PARSED(mk_TREE(nil, []), source),
             success -> success
         end;
 
     
     trimBlanks : PARSER -> PARSER
     trimBlanks(parser) == 
-    	(lambda parsed:PARSED & 
-        	cases parsed:
-            	mk_PARSED(mk_ERROR(-),-) -> parsed,
+        (lambda parsed:PARSED & 
+            cases parsed:
+                mk_PARSED(mk_ERROR(-),-) -> parsed,
                 mk_PARSED(mk_TREE(-, contents), rest) ->
-                	mk_PARSED(contents(2), rest)
+                    mk_PARSED(contents(2), rest)
                 end)
-    	comp 
+        comp 
         (series([
-        	star(either([takeChar(' '), takeChar('\t')])),
-         	parser, 
-         	star(either([takeChar(' '), takeChar('\t')]))]));
-    
+             star(either([takeChar(' '), takeChar('\t')])),
+             parser, 
+             star(either([takeChar(' '), takeChar('\t')]))]));
 
     fail : PARSER -> PARSER
     fail(parser) == lambda source: SOURCE &
-    	let mk_PARSED(tree1, source1) = parser(source) in
-        	cases tree1:
-            	mk_ERROR(-) -> mk_PARSED(mk_TREE(nil, []), source),
+        let mk_PARSED(tree1, source1) = parser(source) in
+            cases tree1:
+                mk_ERROR(-) -> mk_PARSED(mk_TREE(nil, []), source),
                 mk_TREE(-, -) -> mk_PARSED(
-                	mk_ERROR(UNEXPECTED^[source(index) | index in set {1,...,len source - len source1}]), source)
-           	end;
-    
+                    mk_ERROR(UNEXPECTED^[source(index) | index in set {1,...,len source - len source1}]), source)
+                end;
+
     concat : PARSER -> PARSER
     concat(parser) == (lambda p:PARSED & cases p:
-    	mk_PARSED(mk_ERROR(message), rest) -> p,
+        mk_PARSED(mk_ERROR(message), rest) -> p,
         mk_PARSED(mk_TREE(label, contents), rest) ->
-        	if contents = [] then
-            	mk_PARSED(mk_TREE(nil, contents), rest)
+            if contents = [] then
+                mk_PARSED(mk_TREE(nil, contents), rest)
             elseif is_(contents, seq of char) then
-            	mk_PARSED(mk_TREE(nil, contents), rest)
+                mk_PARSED(mk_TREE(nil, contents), rest)
             else
-            	mk_PARSED(mk_TREE(nil, conc([let mk_TREE(-, subcontent) = contents(index) in subcontent | index in set inds contents])), rest)
+                mk_PARSED(mk_TREE(nil, conc([let mk_TREE(-, subcontent) = contents(index) in subcontent | index in set inds contents])), rest)
         end) comp parser;
         
     pass : PARSER -> PARSER
     pass(parser) == lambda source:SOURCE &
-    	cases parser(source):
-    	    mk_PARSED(mk_TREE(label, contents), rest) ->mk_PARSED(mk_TREE(label, []), rest),
-	    	err -> err
+        cases parser(source):
+            mk_PARSED(mk_TREE(label, contents), rest) ->mk_PARSED(mk_TREE(label, []), rest),
+            err -> err
         end;
 
-	label : LABEL * PARSER -> PARSER
+    label : LABEL * PARSER -> PARSER
     label(newLabel, parser) == (lambda parsed : PARSED &
-    	cases parsed:
-        	mk_PARSED(mk_TREE(-, contents), source) -> mk_PARSED(mk_TREE(newLabel, contents), source),
+        cases parsed:
+            mk_PARSED(mk_TREE(-, contents), source) -> mk_PARSED(mk_TREE(newLabel, contents), source),
             others -> parsed
         end) comp parser;
     
@@ -177,17 +177,17 @@ functions
     
     transtree : (TREE -> TREE) * PARSER -> PARSER
     transtree(modifier, parser) == trans(
-    	lambda parsed: PARSED & cases parsed:
-        	mk_PARSED(mk_ERROR(message), rest) -> parsed,
+        lambda parsed: PARSED & cases parsed:
+            mk_PARSED(mk_ERROR(message), rest) -> parsed,
             mk_PARSED(tree, rest) -> mk_PARSED(modifier(tree), rest)
         end, parser);
     
     iferror : seq of char * PARSER -> PARSER
     iferror(message, parser) == trans(
-    	(lambda parsed: PARSED &
-        	cases parsed:
-            	mk_PARSED(mk_ERROR(-), rest) ->
-                	mk_PARSED(mk_ERROR(message), rest),
+        (lambda parsed: PARSED &
+            cases parsed:
+                mk_PARSED(mk_ERROR(-), rest) ->
+                    mk_PARSED(mk_ERROR(message), rest),
                 mk_PARSED(mk_TREE(-, -), -) -> parsed
             end), parser)
 end VCParser
