@@ -40,10 +40,6 @@ imports from VCParser
         integer renamed integer;
 exports functions eval : seq of char -> [int]
 definitions
-types
-    TREE = VCParser`TREE;
-    PARSED = VCParser`PARSED;
-
 values
     
     parseInt = trimBlanks(integer);
