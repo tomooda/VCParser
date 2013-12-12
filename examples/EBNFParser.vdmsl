@@ -1,0 +1,266 @@
+module EBNFParser
+/***
+EBNFParser
+
+NOTE:
+    A meta-identifier shouldn't contain '-'. Use whitespaces instead.
+    Please refer to ISO-14977 for details.
+
+Author: Tomohiro Oda
+Version: 0.01
+License: the MIT License
+
+Copyright (c) 2013 Tomohiro Oda and Software Research Associates, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+***/
+
+imports from VCParser
+    types
+        SOURCE renamed SOURCE;
+        TREE renamed TREE;
+        ERROR renamed ERROR;
+        PARSED renamed PARSED;
+        PARSER renamed PARSER;
+    functions
+        takeChar renamed takeChar;
+        takeString renamed takeString;
+        series renamed series;
+        either renamed either;
+        star renamed star;
+        plus renamed plus;
+        option renamed option;
+        concat renamed concat;
+        trans renamed trans;
+        transtree renamed transtree;
+        label renamed label;
+        pass renamed pass;
+        fail renamed fail;
+    values
+        any renamed any;
+        digit renamed digit;
+exports
+    functions
+        ebnf2vdmsl : seq of char -> seq of char;
+definitions
+values
+    /* EBNF symbols */
+    repetition_symbol = takeChar('*');
+    except_symbol = takeChar('-');
+    concatenate_symbol = takeChar(',');
+    definition_separator_symbol = takeChar('|');
+    defining_symbol = takeChar('=');
+    terminator_symbol = takeChar(';');
+    
+    /* EBNF braces */
+    first_quote_symbol = takeChar('\'');
+    second_quote_symbol = takeChar('"'); -- "
+    start_comment_symbol = takeString("(*");
+    end_comment_symbol = takeString("*)");
+    start_group_symbol = takeChar('(');
+    end_group_symbol = takeChar(')');
+    start_option_symbol = takeChar('[');
+    end_option_symbol = takeChar(']');
+    start_repeat_symbol = takeChar('{');
+    end_repeat_symbol = takeChar('}');
+    special_sequence_symbol = takeChar('?');
+    
+    /* EBNF definitions */
+    nonterminal = transtext(
+        lambda string : seq of char &
+            translateIdentifier(string),
+        concat(plus(concat(series([fail(either([
+            repetition_symbol, except_symbol, concatenate_symbol,
+            definition_separator_symbol, defining_symbol, terminator_symbol,
+            first_quote_symbol, second_quote_symbol, start_comment_symbol,
+            end_comment_symbol, start_group_symbol, end_group_symbol,
+            start_option_symbol, end_option_symbol, start_repeat_symbol,
+            end_repeat_symbol, special_sequence_symbol])), any])))));
+
+    terminal =transtext(
+        lambda string : seq of char & "VCParser`takeString(\""^string^"\")",
+        trimBlanks(concat(either([
+            series([
+                pass(first_quote_symbol),
+                concat(star(concat(series([fail(first_quote_symbol), any])))),
+                pass(first_quote_symbol)]),
+               series([
+                pass(second_quote_symbol),
+                concat(star(concat(series([fail(second_quote_symbol), any])))),
+                pass(second_quote_symbol)])]))));
+            
+    comment =transtext(
+        lambda string : seq of char & "/*"^string^"*/",
+        trimBlanks(concat(
+            series([
+                pass(start_comment_symbol),
+                concat(star(concat(series([fail(end_comment_symbol), any])))),
+                pass(end_comment_symbol)]))));
+
+    group = trimBlanks(concat(series([
+        pass(start_group_symbol),
+        ebnf_exp,
+        pass(end_group_symbol)])));
+
+    optional = transtext(
+        lambda string : seq of char & "VCParser`option("^string^")",
+        trimBlanks(concat(series([
+            pass(start_option_symbol),
+            ebnf_exp,
+            pass(end_option_symbol)]))));
+
+    repeat = transtext(
+        lambda string : seq of char & "VCParser`concat(VCParser`star("^string^"))",
+        trimBlanks(concat(series([
+            pass(start_repeat_symbol),
+            ebnf_exp,
+            pass(end_repeat_symbol)]))));
+
+    special = trimBlanks(concat(series([
+        pass(special_sequence_symbol),
+        concat(star(concat(series([fail(special_sequence_symbol), any])))),
+        pass(special_sequence_symbol)])));
+    
+    ebnf0 = either([
+        terminal,
+        comment,
+        group,
+        optional,
+        repeat,
+        special,
+        nonterminal]);
+    
+    times = transtree(
+        lambda tree : TREE &
+            let mk_TREE(-, [mk_TREE(-, n), -, mk_TREE(-, string)]) = tree in
+                mk_TREE(nil, "VCParser`concat(VCParser`series(["^string^conc([", "^string | i in set {2, ..., atoi(n)}])^"]))"),
+        trimBlanks(series([
+            concat(series([digit, concat(star(digit))])),
+            trimBlanks(repetition_symbol),
+            ebnf0])));
+ 
+    ebnf1 = either([times, ebnf0]);
+    
+    except = transtree(
+        lambda tree : TREE &
+            let mk_TREE(-, [mk_TREE(-, string1), -, mk_TREE(-, string2)]) = tree in
+                mk_TREE(nil, "VCParser`concat(VCParser`series([VCParser`fail("^string2^"), "^string1^"]))"),
+        trimBlanks(series([
+            ebnf1,
+            trimBlanks(except_symbol),
+            ebnf1])));
+    ebnf2 = either([except, ebnf1]);
+
+    concatenate = transtree(
+        lambda tree : TREE &
+            let mk_TREE(-, [mk_TREE(-, string1), mk_TREE(-, trees)]) = tree in
+                mk_TREE(nil, "VCParser`concat(VCParser`series(["^
+                string1^
+                conc([", "^trees(i).contents | i in set inds trees])^
+                "]))"),
+        trimBlanks(series([
+            ebnf2,
+            plus(concat(series([
+                pass(trimBlanks(concatenate_symbol)),
+                ebnf2])))])));
+    ebnf3 = either([concatenate, ebnf2]);
+
+    separate = transtree(
+        lambda tree : TREE &
+            let mk_TREE(-, [mk_TREE(-, string1), mk_TREE(-, trees)]) = tree in
+                mk_TREE(nil, "VCParser`either(["^
+                string1^
+                conc([", "^trees(i).contents | i in set inds trees])^
+                "])"),
+        trimBlanks(series([
+            ebnf3,
+            plus(concat(series([
+                pass(trimBlanks(definition_separator_symbol)),
+                ebnf3])))])));
+    ebnf4 = either([separate, ebnf3]);
+    
+    define = transtree(
+        lambda t : TREE &
+            let mk_TREE(-, [mk_TREE(-, left), -, mk_TREE(-, right), -]) = t in
+                mk_TREE(left, 
+                    "\t"^left^" : VCParser`SOURCE->VCParser`PARSED\n\t"^left^"(string) =="^
+                    right^"(string);\n"),
+        trimBlanks(series([
+            nonterminal,
+            trimBlanks(defining_symbol),
+            ebnf_exp,
+            trimBlanks(terminator_symbol)])));
+
+functions
+    ebnf2vdmsl : seq of char -> seq of char
+    ebnf2vdmsl(string) == cases concat(star(define))(string):
+        mk_PARSED(mk_ERROR(msg), -) -> "ERROR: "^msg,
+        mk_PARSED(mk_TREE(-, vdmsl), []) -> "module PARSER\nimports from VCPARSER all\nexports all\ndefinitions\nfunctions\t\t"^vdmsl^"end PARSER",
+        mk_PARSED(mk_TREE(-, -), rest) -> "FOUND REDUNDANT: "^rest
+        end;
+    
+    ebnf_exp : SOURCE -> PARSED
+    ebnf_exp(source) == ebnf4(source);
+
+    trimBlanks : PARSER -> PARSER
+    trimBlanks(parser) == transtree(
+        lambda t : TREE &
+            let mk_TREE(-, [-, tree, -]) = t in tree,
+        series([
+            star(either([takeChar(' '), takeChar('\t'), takeChar('\n')])),
+            parser,
+            star(either([takeChar(' '), takeChar('\t'), takeChar('\n')]))]));            
+
+    translateIdentifier : seq of char -> seq of char
+    translateIdentifier(string) ==
+        let
+            mapper = lambda c : char & cases c:
+                ' ' -> '_',
+                others -> c
+                end,
+            ident = trimBlanksString(string)
+        in
+            [mapper(ident(i)) | i in set inds ident];
+            
+    trimBlanksString : seq of char -> seq of char
+    trimBlanksString(string) == cases string:
+        [] -> [],
+        [' ']^rest -> trimBlanksString(rest),
+        ['\t']^rest -> trimBlanksString(rest),
+        ['\n']^rest -> trimBlanksString(rest),
+        rest^[' '] -> trimBlanksString(rest),
+        rest^['\t'] -> trimBlanksString(rest),
+        rest^['\n'] -> trimBlanksString(rest),
+        others -> string
+        end;
+
+    transtext : (seq of char ->seq of char) * PARSER -> PARSER
+    transtext(modifier, parser) == trans(
+        lambda parsed: PARSED & cases parsed:
+            mk_PARSED(mk_ERROR(message), rest) -> parsed,
+            mk_PARSED(mk_TREE(label, string), rest) -> mk_PARSED(mk_TREE(label, modifier(string)), rest)
+        end, parser);
+
+    atoi : seq of char -> nat
+    atoi(string) == cases string:
+        [] -> 0,
+        others -> atoi([string(i) | i in set {1,...,len string -1}]) * 10 + {'0' |-> 1, '1' |-> 1, '2' |-> 2, '3' |-> 3, '4' |-> 4, '5' |-> 5, '6' |-> 6, '7' |-> 7, '8' |-> 8, '9'|-> 9}(string(len string))
+        end;
+
+end EBNFParser
