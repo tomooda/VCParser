@@ -13,11 +13,9 @@ imports from VCParser
         either renamed either;
         star renamed star;
         plus renamed plus;
-        option renamed option;
         concat renamed concat;
         trans renamed trans;
         transtree renamed transtree;
-        label renamed label;
         pass renamed pass;
         fail renamed fail;
     values
@@ -214,19 +212,26 @@ functions
         rest^['\t'] -> trimBlanksString(rest),
         rest^['\n'] -> trimBlanksString(rest),
         others -> string
-        end;
+        end
+    measure measure_trimBlanksString;
+    measure_trimBlanksString : seq of char -> nat
+    measure_trimBlanksString(string) == len(string);
 
     transtext : (seq of char ->seq of char) * PARSER -> PARSER
     transtext(modifier, parser) == trans(
         lambda parsed: PARSED & cases parsed:
-            mk_PARSED(mk_ERROR(message), rest) -> parsed,
-            mk_PARSED(mk_TREE(label, string), rest) -> mk_PARSED(mk_TREE(label, modifier(string)), rest)
-        end, parser);
+            mk_PARSED(mk_ERROR(-), -) -> parsed,
+            mk_PARSED(mk_TREE(l, string), rest) -> mk_PARSED(mk_TREE(l, modifier(string)), rest)
+            end,
+        parser);
 
     atoi : seq of char -> nat
     atoi(string) == cases string:
         [] -> 0,
         others -> atoi([string(i) | i in set {1,...,len string -1}]) * 10 + {'0' |-> 0, '1' |-> 1, '2' |-> 2, '3' |-> 3, '4' |-> 4, '5' |-> 5, '6' |-> 6, '7' |-> 7, '8' |-> 8, '9'|-> 9}(string(len string))
-        end;
+        end
+    measure measure_atoi;
+    measure_atoi : seq of char -> nat
+    measure_atoi(string) == len string;
 
 end EBNFParser

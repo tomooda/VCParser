@@ -32,7 +32,7 @@ types
     SOURCE = seq of char;
     ERROR :: message:seq of char;
     LABEL = [seq of char];
-    TREE :: label : LABEL contents : seq of TREE | seq of char;
+    TREE :: nodelabel : LABEL contents : seq of TREE | seq of char;
     PARSED :: parsed : (TREE | ERROR) remaining : SOURCE;
     PARSER = SOURCE -> PARSED;
 
@@ -96,33 +96,43 @@ functions
     series(parsers) == lambda source: SOURCE &
         let mk_PARSED(tree1, source1) = (hd parsers)(source) in
             cases mk_(tree1, tl parsers):
-                mk_(mk_ERROR(msg), -) -> mk_PARSED(tree1, source1),
+                mk_(mk_ERROR(-), -) -> mk_PARSED(tree1, source1),
                 mk_(-, []) -> mk_PARSED(mk_TREE(nil, [tree1]), source1),
                 mk_(-, rest) ->
                     let mk_PARSED(tree2, source2) = series(rest)(source1) in
                         cases tree2:
                             mk_TREE(-, trees2) -> mk_PARSED(mk_TREE(nil, [tree1]^trees2), source2),
-                            mk_ERROR(message) -> mk_PARSED(tree2, source2)
+                            mk_ERROR(-) -> mk_PARSED(tree2, source2)
                             end
-                end;
+                end
+    measure measure_series;
+    measure_series : seq1 of PARSER -> nat
+    measure_series(parsers) == len parsers;
 
     either : seq1 of PARSER -> PARSER
     either(parsers) == lambda source: SOURCE &
         let mk_PARSED(tree1, source1) = (hd parsers)(source) in
             cases mk_(tree1, tl parsers):
-                mk_(mk_ERROR(msg), []) -> mk_PARSED(tree1, source1),
-                mk_(mk_ERROR(msg), -) -> either(tl parsers)(source),
-                mk_(tree, rest) -> mk_PARSED(tree1, source1)
-                end;
+                mk_(mk_ERROR(-), []) -> mk_PARSED(tree1, source1),
+                mk_(mk_ERROR(-), -) -> either(tl parsers)(source),
+                mk_(-, -) -> mk_PARSED(tree1, source1)
+                end
+    measure measure_either;
+    measure_either : seq1 of PARSER -> nat
+    measure_either(parsers) == len parsers;
 
-    star : PARSER -> PARSER
+    star : PARSER -> SOURCE -> PARSED
     star(parser) == lambda source: SOURCE &
         cases parser(source):
             mk_PARSED(mk_ERROR(-), -) -> mk_PARSED(mk_TREE(nil, []), source),
             mk_PARSED(tree, rest) ->
                 let mk_PARSED(mk_TREE(-, trees), source2) = star(parser)(rest) in
                     mk_PARSED(mk_TREE(nil, [tree]^trees), source2)
-            end;
+            end
+    /* How to write a mesasure function for higher order recursion?
+    measure measure_star ;
+    measure_star : PARSER -> SOURCE -> nat
+    measure_star(parser) == lambda string : SOURCE & len string */;
 
     plus : PARSER -> PARSER
     plus(parser) == concat(series([series([parser]), star(parser)]));
@@ -160,8 +170,8 @@ functions
 
     concat : PARSER -> PARSER
     concat(parser) == (lambda p:PARSED & cases p:
-        mk_PARSED(mk_ERROR(message), rest) -> p,
-        mk_PARSED(mk_TREE(label, contents), rest) ->
+        mk_PARSED(mk_ERROR(-), -) -> p,
+        mk_PARSED(mk_TREE(-, contents), rest) ->
             if contents = [] then
                 mk_PARSED(mk_TREE(nil, contents), rest)
             elseif is_(contents, seq of char) then
@@ -173,7 +183,7 @@ functions
     pass : PARSER -> PARSER
     pass(parser) == lambda source:SOURCE &
         cases parser(source):
-            mk_PARSED(mk_TREE(label, contents), rest) ->mk_PARSED(mk_TREE(label, []), rest),
+            mk_PARSED(mk_TREE(l, -), rest) ->mk_PARSED(mk_TREE(l, []), rest),
             err -> err
             end;
 
@@ -190,9 +200,10 @@ functions
     transtree : (TREE -> TREE) * PARSER -> PARSER
     transtree(modifier, parser) == trans(
         lambda parsed: PARSED & cases parsed:
-            mk_PARSED(mk_ERROR(message), rest) -> parsed,
+            mk_PARSED(mk_ERROR(-), -) -> parsed,
             mk_PARSED(tree, rest) -> mk_PARSED(modifier(tree), rest)
-            end, parser);
+            end,
+	parser);
     
     iferror : seq of char * PARSER -> PARSER
     iferror(message, parser) == trans(
