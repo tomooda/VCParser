@@ -124,6 +124,9 @@ functions
                     mk_PARSED(mk_TREE(nil, [tree]^trees), source2)
             end;
 
+    plus : PARSER -> PARSER
+    plus(parser) == concat(series([series([parser]), star(parser)]));
+
     option : PARSER -> PARSER
     option(parser) == lambda source:SOURCE &
         cases parser(source):
