@@ -122,17 +122,19 @@ functions
     measure_either(parsers) == len parsers;
 
     star : PARSER -> SOURCE -> PARSED
-    star(parser) == lambda source: SOURCE &
+    star(parser) == lambda source: SOURCE & uncurried_star(parser, source);
+
+    uncurried_star : PARSER * SOURCE -> PARSED
+    uncurried_star(parser, source) ==
         cases parser(source):
             mk_PARSED(mk_ERROR(-), -) -> mk_PARSED(mk_TREE(nil, []), source),
             mk_PARSED(tree, rest) ->
-                let mk_PARSED(mk_TREE(-, trees), source2) = star(parser)(rest) in
+                let mk_PARSED(mk_TREE(-, trees), source2) = uncurried_star(parser, rest) in
                     mk_PARSED(mk_TREE(nil, [tree]^trees), source2)
             end
-    /* How to write a mesasure function for higher order recursion?
-    measure measure_star ;
-    measure_star : PARSER -> SOURCE -> nat
-    measure_star(parser) == lambda string : SOURCE & len string */;
+    measure measure_uncurried_star ;
+    measure_uncurried_star : PARSER * SOURCE -> nat
+    measure_uncurried_star(parser, string) == len string;
 
     plus : PARSER -> PARSER
     plus(parser) == concat(series([series([parser]), star(parser)]));
