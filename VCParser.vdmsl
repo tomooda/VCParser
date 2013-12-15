@@ -121,20 +121,17 @@ functions
     measure_either : seq1 of PARSER -> nat
     measure_either(parsers) == len parsers;
 
-    star : PARSER -> SOURCE -> PARSED
-    star(parser) == lambda source: SOURCE & uncurried_star(parser, source);
-
-    uncurried_star : PARSER * SOURCE -> PARSED
-    uncurried_star(parser, source) ==
+    star : PARSER -> PARSER
+    star(parser) == lambda source: SOURCE &
         cases parser(source):
             mk_PARSED(mk_ERROR(-), -) -> mk_PARSED(mk_TREE(nil, []), source),
-            mk_PARSED(tree, rest) ->
-                let mk_PARSED(mk_TREE(-, trees), source2) = uncurried_star(parser, rest) in
-                    mk_PARSED(mk_TREE(nil, [tree]^trees), source2)
-            end
-    measure measure_uncurried_star ;
-    measure_uncurried_star : PARSER * SOURCE -> nat
-    measure_uncurried_star(parser, string) == len string;
+            mk_PARSED(tree, rest) -> 
+                if len rest < len source then
+                    let mk_PARSED(mk_TREE(-, trees), source2) = star(parser)(rest) in
+                        mk_PARSED(mk_TREE(nil, [tree]^trees), source2)
+                else
+                    mk_PARSED(mk_TREE(nil, [tree]), rest)
+            end;
 
     plus : PARSER -> PARSER
     plus(parser) == concat(series([series([parser]), star(parser)]));
