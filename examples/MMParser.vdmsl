@@ -78,7 +78,7 @@ values
     evalTree(tree) == cases tree:
         mk_TREE("int", contents) -> evalInt(contents),
         mk_TREE("*", [e1, e2]) -> evalTree(e1) * evalTree(e2),
-        mk_TREE("/", [e1, e2]) -> evalTree(e1) / evalTree(e2),
+        mk_TREE("/", [e1, e2]) -> evalTree(e1) div evalTree(e2),
         mk_TREE("+", [e1, e2]) -> evalTree(e1) + evalTree(e2),
         mk_TREE("-", [e1, e2]) -> evalTree(e1) - evalTree(e2)
         end
