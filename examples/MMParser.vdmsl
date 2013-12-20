@@ -74,17 +74,45 @@ values
     measure_evalInt : seq of char -> nat
     measure_evalInt(string) == len string;
 
-    evalTree : TREE -> int
+    evalTree : TREE -> [int]
     evalTree(tree) == cases tree:
         mk_TREE("int", contents) -> evalInt(contents),
-        mk_TREE("*", [e1, e2]) -> evalTree(e1) * evalTree(e2),
-        mk_TREE("/", [e1, e2]) -> evalTree(e1) div evalTree(e2),
-        mk_TREE("+", [e1, e2]) -> evalTree(e1) + evalTree(e2),
-        mk_TREE("-", [e1, e2]) -> evalTree(e1) - evalTree(e2)
+        mk_TREE("*", [e1, e2]) -> evalMul(evalTree(e1), evalTree(e2)),
+        mk_TREE("/", [e1, e2]) -> evalDiv(evalTree(e1), evalTree(e2)),
+        mk_TREE("+", [e1, e2]) -> evalAdd(evalTree(e1), evalTree(e2)),
+        mk_TREE("-", [e1, e2]) -> evalSub(evalTree(e1), evalTree(e2))
         end
     /* measure measure_eval;
     measure_eval : TREE -> nat
     measure_eval(tree) == is not yet specified*/ ;
+
+    evalMul : [int] * [int] -> [int]
+    evalMul(i1, i2) ==
+        if i1 <> nil and i2 <> nil then
+            let i:real = i1 * i2 in if is_(i, int) then i else nil
+        else
+            nil;
+    
+    evalDiv : [int] * [int] -> [int]
+    evalDiv(i1, i2) ==
+        if i1 <> nil and i2 <> nil then
+            let i:real = i1 div i2 in if is_(i, int) then i else nil
+        else
+            nil;
+    
+    evalAdd : [int] * [int] -> [int]
+    evalAdd(i1, i2) ==
+        if i1 <> nil and i2 <> nil then
+            let i:real = i1 + i2 in if is_(i, int) then i else nil
+        else
+            nil;
+    
+    evalSub : [int] * [int] -> [int]
+    evalSub(i1, i2) ==
+        if i1 <> nil and i2 <> nil then
+            let i:real = i1 - i2 in if is_(i, int) then i else nil
+        else
+            nil;
     
     eval : seq of char -> [int]
     eval(string) == cases parseExpression(string):
