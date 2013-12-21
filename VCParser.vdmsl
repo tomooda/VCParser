@@ -154,9 +154,9 @@ functions
                 end)
         comp 
         (series([
-             star(either([takeChar(' '), takeChar('\t')])),
+             star(either([takeChar(' '), takeChar('\t'), takeChar('\n'), takeChar('\r')])),
              parser, 
-             star(either([takeChar(' '), takeChar('\t')]))]));
+             star(either([takeChar(' '), takeChar('\t'), takeChar('\n'), takeChar('\r')]))]));
 
     fail : PARSER -> PARSER
     fail(parser) == lambda source: SOURCE &
