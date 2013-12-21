@@ -32,7 +32,7 @@ types
     SOURCE = seq of char;
     ERROR :: message:seq of char;
     LABEL = [seq of char];
-    TREE :: nodelabel : LABEL contents : seq of TREE | seq of char;
+    TREE :: nodelabel : LABEL contents : seq of (TREE | char);
     PARSED :: parsed : (TREE | ERROR) remaining : SOURCE;
     PARSER = SOURCE -> PARSED;
 
@@ -145,18 +145,13 @@ functions
 
     
     trimBlanks : PARSER -> PARSER
-    trimBlanks(parser) == 
-        (lambda parsed:PARSED & 
-            cases parsed:
-                mk_PARSED(mk_ERROR(-),-) -> parsed,
-                mk_PARSED(mk_TREE(-, contents), rest) ->
-                    mk_PARSED(contents(2), rest)
-                end)
-        comp 
-        (series([
-             star(either([takeChar(' '), takeChar('\t'), takeChar('\n'), takeChar('\r')])),
-             parser, 
-             star(either([takeChar(' '), takeChar('\t'), takeChar('\n'), takeChar('\r')]))]));
+    trimBlanks(parser) == transtree(
+        lambda t : TREE &
+            let mk_TREE(-, [-, tree, -]) = t in tree,
+        series([
+            star(either([takeChar(' '), takeChar('\t'), takeChar('\n'), takeChar('\r')])),
+            parser,
+            star(either([takeChar(' '), takeChar('\t'), takeChar('\n'), takeChar('\r')]))]));   
 
     fail : PARSER -> PARSER
     fail(parser) == lambda source: SOURCE &

@@ -1,4 +1,45 @@
 module EBNFParser
+/***
+EBNFParser
+
+This is an implementation of EBNF defined in ISO 14977.
+Please note:
+(1) meta-vars starts with uppercase eliminates its direct terminal characters.
+(2) meta-vars starts with lowercase keeps its terminal characters.
+(3) A meta-var shouldn't contain '-'. Please use whitespaces instead.
+
+For example,
+EBNFParser`ebnf2vdmsl("as = 'a',{'a'}; IfA = 'if ',as;")
+will generate a module with two functions; as and IfA, where
+IfA("if aab") will generate a parse tree
+mk_PARSED(mk_TREE(nil, [mk_VCParser`TREE("IfA", [mk_TREE("as", "aa")])]), "b")
+As you see the "if" part is eliminated from the parse tree.
+
+Author: Tomohiro Oda
+Version: 0.02
+License: the MIT License
+
+Copyright (c) 2013 Tomohiro Oda and Software Research Associates, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+***/
+
 imports from VCParser
     types
         SOURCE renamed SOURCE;
@@ -13,6 +54,7 @@ imports from VCParser
         either renamed either;
         star renamed star;
         plus renamed plus;
+        trimBlanks renamed trimBlanks;
         concat renamed concat;
         trans renamed trans;
         transtree renamed transtree;
@@ -21,9 +63,15 @@ imports from VCParser
     values
         any renamed any;
         digit renamed digit;
-exports functions ebnf2vdmsl : seq of char -> seq of char;
+exports
+    functions
+        ebnf2vdmsl : seq of char -> seq of char;
+        keepNode : PARSER -> PARSER;
+        clean : PARSER -> PARSER;
 definitions
 values
+    /* chars */
+    UPPER = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'};
     /* EBNF symbols */
     repetition_symbol = takeChar('*');
     except_symbol = takeChar('-');
@@ -64,7 +112,7 @@ values
                 pass(first_quote_symbol),
                 concat(star(concat(series([fail(first_quote_symbol), any])))),
                 pass(first_quote_symbol)]),
-               series([
+            series([
                 pass(second_quote_symbol),
                 concat(star(concat(series([fail(second_quote_symbol), any])))),
                 pass(second_quote_symbol)])]))));
@@ -163,8 +211,11 @@ values
         lambda t : TREE &
             let mk_TREE(-, [mk_TREE(-, left), -, mk_TREE(-, right), -]) = t in
                 mk_TREE(left, 
-                    "\t"^left^" : VCParser`SOURCE->VCParser`PARSED\n\t"^left^"(string) =="^
-                    "VCParser`label(\""^left^"\", (VCParser`series(["^right^"])))(string);\n"),
+                    "\t"^left^" : VCParser`SOURCE->VCParser`PARSED\n\t"^left^"(string) == EBNFParser`keepNode("^
+                    (if hd left in set UPPER then "EBNFParser`clean(" else "") ^
+                    "VCParser`label(\""^left^"\", "^right^")"^
+                    (if hd left in set UPPER then ")" else "") ^
+                    ")(string);\n"),
         trimBlanks(series([
             nonterminal,
             trimBlanks(defining_symbol),
@@ -175,21 +226,22 @@ functions
     ebnf2vdmsl : seq of char -> seq of char
     ebnf2vdmsl(string) == cases concat(star(define))(string):
         mk_PARSED(mk_ERROR(msg), -) -> "ERROR: "^msg,
-        mk_PARSED(mk_TREE(-, vdmsl), []) -> "module PARSER\nimports from VCParser all\nexports all\ndefinitions\nfunctions\n"^vdmsl^"end PARSER",
+        mk_PARSED(mk_TREE(-, vdmsl), []) -> "module PARSER\nimports from VCParser all, from EBNFParser all\nexports all\ndefinitions\nfunctions\n"^vdmsl^"end PARSER",
         mk_PARSED(mk_TREE(-, -), rest) -> "FOUND REDUNDANT: "^rest
         end;
     
+    keepNode : PARSER -> PARSER
+    keepNode(p) == series([p]);
+    clean : PARSER -> PARSER
+    clean(p) == transtree(
+        lambda t:TREE & let mk_TREE(l, trees) = t in
+            mk_VCParser`TREE(l, [ trees(i) |
+                    i in set inds trees &
+                    is_TREE(trees(i))]), p);
+
+
     ebnf_exp : SOURCE -> PARSED
     ebnf_exp(source) == ebnf4(source);
-
-    trimBlanks : PARSER -> PARSER
-    trimBlanks(parser) == transtree(
-        lambda t : TREE &
-            let mk_TREE(-, [-, tree, -]) = t in tree,
-        series([
-            star(either([takeChar(' '), takeChar('\t'), takeChar('\n')])),
-            parser,
-            star(either([takeChar(' '), takeChar('\t'), takeChar('\n')]))]));            
 
     translateIdentifier : seq of char -> seq of char
     translateIdentifier(string) ==
