@@ -49,26 +49,104 @@ values
     ***/
     any = lambda source:SOURCE &
         cases source:
-            [] -> mk_PARSED(mk_ERROR(UNEXPECTED_EOF), source),
-            others -> mk_PARSED(mk_TREE(nil, [hd source]), tl source)
+            [c]^rest -> mk_PARSED(mk_TREE(nil, [c]), rest),
+            others -> mk_PARSED(mk_ERROR(UNEXPECTED_EOF), source)
             end;
+            
+    digit = lambda source: SOURCE & cases source:
+    		[c]^rest ->
+    			if c in set {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'} 
+    			then mk_PARSED(mk_TREE("digit", [c]), rest) 
+    			else mk_PARSED(mk_ERROR("Expected a digit"), source),
+    		others -> mk_PARSED(mk_ERROR("Expected a digit"), source)
+    	end;
 
-    digit = label("digit",
-        either([takeChar("0123456789"(index)) | index in set {1,...,10}]));
-    lowerAlphabet = label("lowerAlphabet",
-        either([takeChar("abcdefghijklmnopqrstuvwxyz"(index)) | index in set {1,...,26}]));
-    upperAlphabet = label("upperAlphabet",
-        either([takeChar("ABCDEFGHIJKLMNOPQRSTUVWXYZ"(index)) | index in set {1,...,26}]));
-    alphabet = label("alphabet", either([lowerAlphabet, upperAlphabet]));
+    lowerAlphabet = lambda source: SOURCE & cases source:
+    		[c]^rest ->
+    			if c in set {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'} 
+    			then mk_PARSED(mk_TREE("lowerAlphabet", [c]), rest) 
+    			else mk_PARSED(mk_ERROR("Expected a lower alphabet"), source),
+    		others -> mk_PARSED(mk_ERROR("Expected a lower alphabet"), source)
+    	end;
 
-    natnum = label("nat",
-        either([
-            takeChar('0'),
-            concat(series([
-                concat(series([pass(fail(takeChar('0'))),digit])),
-                concat(star(digit))]))]));
-    integer = label("int",
-        concat(series([option(takeChar('-')), natnum])))
+    upperAlphabet = lambda source: SOURCE & cases source:
+    		[c]^rest ->
+    			if c in set {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'} 
+    			then mk_PARSED(mk_TREE("upperAlphabet", [c]), rest) 
+    			else mk_PARSED(mk_ERROR("Expected an upper alphabet"), source),
+    		others -> mk_PARSED(mk_ERROR("Expected an upper alphabet"), source)
+    	end;
+
+    alphabet = lambda source: SOURCE & cases source:
+    		[c]^rest ->
+    			if c in set {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'} 
+    			then mk_PARSED(mk_TREE("upperAlphabet", [c]), rest) 
+    			else mk_PARSED(mk_ERROR("Expected an upper alphabet"), source),
+    		others -> mk_PARSED(mk_ERROR("Expected an upper alphabet"), source)
+    	end;
+
+    natnum = lambda source: SOURCE & cases source:
+      ['0']^rest -> mk_PARSED(mk_TREE("nat", ['0']), rest),
+      others -> 
+      	let
+      		measure_digits : SOURCE -> nat
+      		measure_digits(string) == len string,
+      		digits:SOURCE -> SOURCE*SOURCE
+      		digits(string) == cases string:
+      				[c]^rest ->
+      					if c in set {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'} 
+      					then let mk_(ds, rst) = digits(rest) in mk_([c]^ds, rst)
+      					else mk_("", string),
+      				others -> mk_("", "")
+      			end
+      			measure measure_digits,
+      		mk_(n, r) = digits(source)
+      	in
+      		if n = "" 
+      		then mk_PARSED(mk_ERROR("Expected a nat"), source) 
+      		else mk_PARSED(mk_TREE("nat", n), r)
+     end;
+
+    integer = lambda source: SOURCE & cases source:
+      ['0']^rest -> mk_PARSED(mk_TREE("int", ['0']), rest),
+      ['-']^rest -> 
+      	let
+      		measure_digits : SOURCE -> nat
+      		measure_digits(string) == len string,
+      		digits:SOURCE -> SOURCE*SOURCE
+      		digits(string) == cases string:
+      				[c]^r ->
+      					if c in set {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'} 
+      					then let mk_(ds, rst) = digits(r) in mk_([c]^ds, rst)
+      					else mk_("", string),
+      				others -> mk_("", "")
+      			end
+      			measure measure_digits,
+      		mk_(n, r) = digits(rest)
+      	in
+      		if n = "" 
+      		then mk_PARSED(mk_ERROR("Expected an int"), source) 
+      		else mk_PARSED(mk_TREE("int", "-"^n), r),
+      others -> 
+      	let
+      		measure_digits : SOURCE -> nat
+      		measure_digits(string) == len string,
+      		digits:SOURCE -> SOURCE*SOURCE
+      		digits(string) == cases string:
+      				[c]^rest ->
+      					if c in set {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'} 
+      					then let mk_(ds, rst) = digits(rest) in mk_([c]^ds, rst)
+      					else mk_("", string),
+      				others -> mk_("", "")
+      			end
+      			measure measure_digits,
+      		mk_(n, r) = digits(source)
+      	in
+      		if n = "" 
+      		then mk_PARSED(mk_ERROR("Expected an int"), source) 
+      		else mk_PARSED(mk_TREE("int", n), r)
+     end;
+
 
 functions    
     /***
@@ -77,18 +155,34 @@ functions
     takeChar : char -> PARSER
     takeChar(c) == lambda source : SOURCE &
         cases source:
-           [] -> mk_PARSED(mk_ERROR(UNEXPECTED_EOF), source),
-           others ->
-               if hd source = c then
-                   mk_PARSED(mk_TREE(nil, [c]), tl source)
+       		[h]^rest ->
+               if h = c then
+                   mk_PARSED(mk_TREE(nil, [c]), rest)
                else
-                   mk_PARSED(mk_ERROR(EXPECTED^"'"^[c]^"'"), source)
+                   mk_PARSED(mk_ERROR(EXPECTED^"'"^[c]^"'"), source),
+           others -> mk_PARSED(mk_ERROR(UNEXPECTED_EOF), source)
            end;
     
     takeString : seq1 of char -> PARSER
-    takeString(string) ==
-        concat(series([takeChar(string(index)) | index in set inds string]));
-
+    takeString(string) == lambda source : SOURCE &
+    	let
+        measure_match: SOURCE * SOURCE -> nat
+        measure_match(str1, str2) == len str1 +len str2,
+    		match : SOURCE * SOURCE -> [SOURCE]
+      	match(str1, str2) == cases str1:
+           	[h1]^r1 -> cases str2:
+           			[h2]^r2 -> if h1 = h2 then match(r1, r2) else nil,
+           			others -> str1
+           			end,
+        		others -> if str2 = "" then "" else nil
+           	end
+          	measure measure_match,
+        rest = match(source, string)
+     	in
+     		if rest = nil
+     		then mk_PARSED(mk_ERROR(EXPECTED^"'"^string^"'"), source)
+     		else mk_PARSED(mk_TREE(nil, string), rest);
+ 
     /***
     parser combinators
     ***/
@@ -145,13 +239,30 @@ functions
 
     
     trimBlanks : PARSER -> PARSER
-    trimBlanks(parser) == transtree(
-        lambda t : TREE &
-            let mk_TREE(-, [-, tree, -]) = t in tree,
-        series([
-            star(either([takeChar(' '), takeChar('\t'), takeChar('\n'), takeChar('\r')])),
-            parser,
-            star(either([takeChar(' '), takeChar('\t'), takeChar('\n'), takeChar('\r')]))]));   
+    trimBlanks(parser) == lambda source:SOURCE & cases source:
+    		" "^rest -> trimBlanks(parser)(rest),
+    		"\t"^rest -> trimBlanks(parser)(rest),
+    		"\n"^rest -> trimBlanks(parser)(rest),
+    		"\r"^rest -> trimBlanks(parser)(rest),
+    		others -> cases parser(source):
+    				mk_PARSED(mk_TREE(l, c), rest) ->
+    						let
+    							measure_trimTailBlanks: SOURCE -> nat
+    							measure_trimTailBlanks(s) == len s,
+    							trimTailBlanks : SOURCE -> SOURCE
+    							trimTailBlanks(s) == cases s:
+    									" "^r -> trimTailBlanks(r),
+    									"\t"^r -> trimTailBlanks(r),
+    									"\n"^r -> trimTailBlanks(r),
+    									"\r"^r -> trimTailBlanks(r),
+    									others -> s
+    								end
+    								measure measure_trimTailBlanks
+    						in
+    							mk_PARSED(mk_TREE(l, c), trimTailBlanks(rest)),
+    				p -> p
+    				end
+    		end;
 
     fail : PARSER -> PARSER
     fail(parser) == lambda source: SOURCE &
@@ -163,16 +274,16 @@ functions
                 end;
 
     concat : PARSER -> PARSER
-    concat(parser) == (lambda p:PARSED & cases p:
-        mk_PARSED(mk_ERROR(-), -) -> p,
-        mk_PARSED(mk_TREE(-, contents), rest) ->
+    concat(parser) == lambda source: SOURCE & cases parser(source):
+        mk_PARSED(mk_TREE(l, contents), rest) ->
             if contents = [] then
-                mk_PARSED(mk_TREE(nil, contents), rest)
+                mk_PARSED(mk_TREE(l, contents), rest)
             elseif is_(contents, seq of char) then
-                mk_PARSED(mk_TREE(nil, contents), rest)
+                mk_PARSED(mk_TREE(l, contents), rest)
             else
-                mk_PARSED(mk_TREE(nil, conc([let mk_TREE(-, subcontent) = contents(index) in subcontent | index in set inds contents])), rest)
-        end) comp parser;
+                mk_PARSED(mk_TREE(l, conc([let mk_TREE(-, subcontent) = contents(index) in subcontent | index in set inds contents])), rest),
+        p -> p
+        end;
         
     pass : PARSER -> PARSER
     pass(parser) == lambda source:SOURCE &
@@ -189,7 +300,7 @@ functions
             end) comp parser;
     
     trans : (PARSED->PARSED) * PARSER->PARSER
-    trans(modifier, parser) == modifier comp parser;
+    trans(modifier, parser) == lambda source:SOURCE & (modifier comp parser)(source);
     
     transtree : (TREE -> TREE) * PARSER -> PARSER
     transtree(modifier, parser) == trans(

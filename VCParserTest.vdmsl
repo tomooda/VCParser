@@ -1,12 +1,9 @@
 module VCParserTest
 imports from VCParser
     types
-        SOURCE renamed SOURCE;
         ERROR renamed ERROR;
-        LABEL renamed LABEL;
         PARSED renamed PARSED;
         TREE renamed TREE;
-        PARSER renamed PARSER;
     functions
         takeChar renamed takeChar;
         takeString renamed takeString;
@@ -153,15 +150,15 @@ operations
     test_trans : () ==> ()
     test_trans() == (
         let parsed = mk_PARSED(mk_TREE(nil, []), []) in (
-            test(trans(lambda p:PARSED&parsed, a)("abc"), lambda p:PARSED & p = parsed);
-            test(trans(lambda p:PARSED&parsed, a)("bc"), lambda p:PARSED & p = parsed)));
+            test(trans(lambda -:PARSED&parsed, a)("abc"), lambda p:PARSED & p = parsed);
+            test(trans(lambda -:PARSED&parsed, a)("bc"), lambda p:PARSED & p = parsed)));
 
     /* transtree */
     test_transtree : () ==> ()
     test_transtree() == (
         let tree = mk_TREE(nil, []) in (
-            test(transtree(lambda t:TREE&tree, a)("abc"), lambda p:PARSED & p.parsed = tree);
-            test(transtree(lambda t:TREE&tree, a)("bc"), lambda p:PARSED & is_ERROR(p.parsed))));
+            test(transtree(lambda -:TREE&tree, a)("abc"), lambda p:PARSED & p.parsed = tree);
+            test(transtree(lambda -:TREE&tree, a)("bc"), lambda p:PARSED & is_ERROR(p.parsed))));
 
     /* iferror */
     test_iferror : () ==> ()
