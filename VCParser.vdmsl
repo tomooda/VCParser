@@ -56,8 +56,10 @@ values
         label(
             "whiteChar",
             either([takeChar(" \t\r\n"(index)) | index in set {1, ..., 4}]));
-     ws = star(whiteChar);
-     ws1 = plus(whiteChar);
+     whiteString = star(whiteChar);
+     whiteString1 = plus(whiteChar);
+     passWhiteString = pass(whiteString);
+     passWhiteString1 = pass(whiteString1);
      digit =
         label(
             "digit",
@@ -102,6 +104,12 @@ functions
                     else
                         mk_PARSED(mk_ERROR(EXPECTED ^ "'" ^ [c] ^ "'"), source)
                 end;
+    
+    passChar : char -> PARSER
+    passChar(c) == pass(takeChar(c));
+    
+    passString : seq of char -> PARSER
+    passString(s) == pass(takeString(s));
     /***
     parser combinators
     ***/
@@ -255,12 +263,6 @@ functions
                 mk_PARSED(mk_TREE(l, -), rest) -> mk_PARSED(mk_TREE(l, []), rest),
                 err -> err
                 end;
-    
-    passChar : char -> PARSER
-    passChar(c) == pass(takeChar(c));
-    
-    passString : seq of char -> PARSER
-    passString(s) == pass(takeString(s));
     
     label : LABEL * PARSER -> PARSER
     label(newLabel, parser) ==
