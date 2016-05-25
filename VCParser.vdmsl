@@ -165,8 +165,33 @@ functions
                     in mk_PARSED(mk_TREE(nil, [tree] ^ trees), source2)
                 end;
     
-    iterate : PARSER * nat1 -> PARSER
-    iterate(parser, n) == series([parser | i in set {1, ..., n}]);
+    iterate : PARSER * [nat] * [nat1] -> PARSER
+    iterate(parser, m, n) ==
+        let lower = if m = nil then 0 else m
+        in
+            series(
+                [parser | i in set {1, ..., lower}]
+                ^ (if
+                        n = nil
+                    then
+                        [star(parser)]
+                    else
+                        [option(parser) | i in set {lower + 1, ..., n}]))
+    pre m <> nil and n <> nil => m <= n;
+    
+    iterateWithSeparator : PARSER * PARSER -> PARSER
+    iterateWithSeparator(parser, separator) ==
+        let next_item = series([pass(separator), parser])
+        in series([parser, star(next_item)]);
+    
+    iterateFixedTimes : PARSER * nat1 -> PARSER
+    iterateFixedTimes(parser, n) == iterate(parser, n, n);
+    
+    iterateAtMost : PARSER * nat1 -> PARSER
+    iterateAtMost(parser, n) == iterate(parser, nil, n);
+    
+    iterateAtLeast : PARSER * nat -> PARSER
+    iterateAtLeast(parser, n) == iterate(parser, n, nil);
     
     option : PARSER -> PARSER
     option(parser) ==
@@ -231,6 +256,12 @@ functions
                 err -> err
                 end;
     
+    passChar : char -> PARSER
+    passChar(c) == pass(takeChar(c));
+    
+    passString : seq of char -> PARSER
+    passString(s) == pass(takeString(s));
+    
     label : LABEL * PARSER -> PARSER
     label(newLabel, parser) ==
         (lambda parsed : PARSED &
@@ -263,11 +294,13 @@ functions
                     mk_PARSED(mk_TREE(-, -), -) -> parsed
                     end,
             parser);
-    -- Does a tree have no content?
+/***
+ utilities for tree manipulation 
+***/
     
     isEmpty : TREE -> bool
     isEmpty(tree) == tree.label = nil and tree.contents = [];
-    -- Prune and lift a sequence of trees.
+/*  Prune and lift a sequence of trees. */
     
     pruneTrees : seq of TREE -> seq of TREE
     pruneTrees(trees) ==
@@ -317,13 +350,13 @@ functions
         then
             "Error: " ^ treeOrError.message ^ "\n"
         else
-            "Parse Tree:\n" ^ formatTree(treeOrError, STEP);
+            "Parse Tree:\n" ^ formatTree(treeOrError, TABSIZE);
     -- Format as text a parse tree.
     
     formatTree : TREE * nat -> seq of char
     formatTree(mk_TREE(lbl, contents), n) ==
         let lblstr = if lbl = nil then "" else lbl
-        in indent(n) ^ lblstr ^ "\n" ^ formatTree2(contents, n + STEP);
+        in indent(n) ^ lblstr ^ "\n" ^ formatTree2(contents, n + TABSIZE);
     -- Format as text the parse tree content (text or sequence of subtrees).
     
     formatTree2 : (seq of TREE| seq of char) * nat -> seq of char
@@ -340,6 +373,6 @@ functions
     indent(n) == [' ' | i in set {1, ..., n}];
 
 values
-     STEP = 2;
+     TABSIZE = 2;
 
 end VCParser
