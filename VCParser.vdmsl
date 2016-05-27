@@ -32,7 +32,7 @@ types
      SOURCE = seq of char;
      ERROR :: message : seq of char;
      LABEL = [seq of char];
-     TREE :: label : LABEL contents : seq of TREE| seq of char;
+     TREE :: label : LABEL contents : seq of (TREE | char);
      PARSED :: parsed : TREE| ERROR remaining : SOURCE;
      PARSER = SOURCE -> PARSED;
 
