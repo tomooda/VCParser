@@ -30,7 +30,7 @@ THE SOFTWARE.
 
 This module supplements the VCParser module with additional convenience functions.
 
-Note this module depends on modules Numeric and Seq that are in the ISO8601 example located at
+Note this module depends on modules Char, Numeric and Seq that are in the ISO8601 example located at
 
     http://overturetool.org/download/examples/VDMSL/
 
@@ -38,21 +38,22 @@ Note this module depends on modules Numeric and Seq that are in the ISO8601 exam
 imports from VCParser types PARSER renamed PARSER
                             SOURCE renamed SOURCE
                             PARSED renamed PARSED
-                            TREE renamed TREE
-                            ERROR renamed ERROR
-                            LABEL renamed LABEL,
+                            TREE   renamed TREE
+                            ERROR  renamed ERROR
+                            LABEL  renamed LABEL,
         from Seq all,
-        from Numeric all
-exports functions takeUpto : seq1 of char -> PARSER
-                  getContent: LABEL * TREE -> seq of char
-                  getContentNat: LABEL * TREE -> nat
-                  getTrees: LABEL * TREE -> seq of TREE
-                  getTree: LABEL * TREE -> TREE
-                  isEmpty : TREE -> bool
-                  prune : PARSED -> PARSED
-                  pruneTree : TREE -> TREE
-                  format : PARSED -> seq of char
-                  formatTree : TREE * nat -> seq of char
+        from Numeric all,
+        from Char all
+exports functions takeUpto     : seq1 of char +> PARSER
+                  getContent   : LABEL * TREE +> seq of char
+                  getContentNat: LABEL * TREE +> nat
+                  getTrees     : LABEL * TREE +> seq of TREE
+                  getTree      : LABEL * TREE +> TREE
+                  isEmpty      : TREE +> bool
+                  prune        : PARSED -> PARSED
+                  pruneTree    : TREE -> TREE
+                  format       : PARSED -> seq of char
+                  formatTree   : TREE * nat -> seq of char
 
 definitions
 
@@ -63,7 +64,7 @@ values
 functions
 
     -- Recognise characters in the source till a specified sequence is reached.
-    takeUpto : seq1 of char -> PARSER
+    takeUpto : seq1 of char +> PARSER
     takeUpto(word) ==
         lambda source : SOURCE &
             cases Seq`indexOfSeqOpt[char](word, source):
@@ -76,27 +77,28 @@ functions
     */
 
     -- Get the character content.
-    getContent: LABEL * TREE -> seq of char
+    getContent: LABEL * TREE +> seq of char
     getContent(lbl, mk_TREE(label,content)) == content
     pre (lbl = nil or lbl = label) and is_(content, seq of char);
 
     -- Get the character content as a natural number.
-    getContentNat: LABEL * TREE -> nat
-    getContentNat(lbl, tree) == Numeric`decodeNat(getContent(lbl,tree));
+    getContentNat: LABEL * TREE +> nat
+    getContentNat(lbl, tree) == Numeric`decodeNat(getContent(lbl,tree))
+    pre pre_getContent(lbl, tree) and Char`isDigits(tree.contents);
 
     -- Get the sequence of sub trees.
-    getTrees: LABEL * TREE -> seq of TREE
+    getTrees: LABEL * TREE +> seq of TREE
     getTrees(lbl, mk_TREE(label,content)) == content
     pre (lbl = nil or lbl = label) and is_(content, seq of TREE);
 
     -- Get the only sub tree.
-    getTree: LABEL * TREE -> TREE
-    getTree(lbl, mk_TREE(label,content)) == content(1)
-    pre (lbl = nil or lbl = label) and is_(content, seq of TREE) and len content = 1;
+    getTree: LABEL * TREE +> TREE
+    getTree(lbl, tree) == tree.contents(1)
+    pre pre_getTrees(lbl, tree) and len tree.contents = 1;
 
     -- Is a tree empty (has not label or content)?
-    isEmpty : TREE -> bool
-    isEmpty(tree) == tree.label = nil and tree.contents = [];
+    isEmpty : TREE +> bool
+    isEmpty(mk_TREE(label,content)) == label = nil and content = [];
 
     /*
        Convenience functions for flattening out parse trees:
@@ -179,7 +181,7 @@ functions
         in indent(n) ^ "'" ^ lblstr ^ "'\n" ^ formatContent(contents, n + TABSIZE);
 
     -- Format as text the parse tree content (text or sequence of subtrees).
-    formatContent : (seq of TREE| seq of char) * nat -> seq of char
+    formatContent : (seq of TREE | seq of char) * nat -> seq of char
     formatContent(tt, n) ==
         if
             is_(tt, seq of char)
@@ -189,7 +191,7 @@ functions
             conc [formatTree(tt(i), n) | i in set inds tt];
 
     -- Create a sequence of spaces.
-    indent : nat -> seq of char
+    indent : nat +> seq of char
     indent(n) == [' ' | i in set {1, ..., n}];
 
 end VCParserSupp
