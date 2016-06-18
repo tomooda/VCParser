@@ -40,20 +40,34 @@ imports from VCParser types PARSER renamed PARSER
                             PARSED renamed PARSED
                             TREE   renamed TREE
                             ERROR  renamed ERROR
-                            LABEL  renamed LABEL,
+                            LABEL  renamed LABEL
+                      functions label renamed label
+                                either renamed either
+                                concat renamed concat
+                                iterate renamed iterate
+                                digit renamed digit
+                                lowerAlphabet renamed lowerAlphabet
+                                upperAlphabet renamed upperAlphabet
+                                alphabet renamed alphabet
+                                takeChar renamed takeChar,
         from Seq all,
         from Numeric all,
         from Char all
-exports functions takeUpto     : seq1 of char +> PARSER
-                  getContent   : LABEL * TREE +> seq of char
-                  getContentNat: LABEL * TREE +> nat
-                  getTrees     : LABEL * TREE +> seq of TREE
-                  getTree      : LABEL * TREE +> TREE
-                  isEmpty      : TREE +> bool
-                  prune        : PARSED -> PARSED
-                  pruneTree    : TREE -> TREE
-                  format       : PARSED -> seq of char
-                  formatTree   : TREE * nat -> seq of char
+exports values lowerAlphanum, upperAlphanum, alphanum, octal, hex: PARSER
+        functions takeNumeric      : [nat1] * [nat1] -> PARSER
+                  takeFixedNumeric : nat1 -> PARSER
+                  takeBoundedString: seq1 of char * PARSER * nat * nat -> PARSER
+                  takeUpto         : seq1 of char * [PARSER] +> PARSER
+                  takeUptoOneOf    : seq of seq1 of char * [seq1 of char] * [PARSER] +> PARSER
+                  getContent       : LABEL * TREE +> seq of char
+                  getContentNat    : LABEL * TREE +> nat
+                  getTrees         : LABEL * TREE +> seq of TREE
+                  getTree          : LABEL * TREE +> TREE
+                  isEmpty          : TREE +> bool
+                  prune            : PARSED -> PARSED
+                  pruneTree        : TREE -> TREE
+                  format           : PARSED -> seq of char
+                  formatTree       : TREE * nat -> seq of char
 
 definitions
 
@@ -61,15 +75,83 @@ values
 
      TABSIZE = 2;
 
+     -- Recognise a lower case alphanumeric character.
+     lowerAlphanum =
+        label("lowerAlphanum", either([lowerAlphabet, digit]));
+
+     -- Recognise an upper case alphanumeric character.
+     upperAlphanum =
+        label("upperAlphanum", either([upperAlphabet, digit]));
+
+     -- Recognise an alphanumeric character.
+     alphanum =
+        label("alphabet", either([alphabet, digit]));
+
+     -- Recognise an octal digit.
+     octal =
+        label(
+            "octal",
+            either([takeChar("01234567"(index)) | index in set {1, ..., 8}]));
+
+     -- Recognise a hexadecimal digit.
+     hex =
+        label(
+            "hex",
+            either([takeChar("0123456789ABCDEFabcdef"(index)) | index in set {1, ..., 22}]));
+
 functions
 
-    -- Recognise characters in the source till a specified sequence is reached.
-    takeUpto : seq1 of char +> PARSER
-    takeUpto(word) ==
+    -- Recognise a numeric value optionally specifying the minimum and maximum digits.
+    takeNumeric: [nat1] * [nat1] -> PARSER
+    takeNumeric(m, n) == let m1 = if m = nil then 1 else m
+                         in concat(iterate(digit, m1, n))
+    pre m <> nil and n <> nil => m <= n;
+
+    -- Recognise a fixed length numeric value.
+    takeFixedNumeric: nat1 -> PARSER
+    takeFixedNumeric(n) == takeNumeric(n, n);
+
+    -- Recognise a string optionally specifying a minimum and maximum length.
+    -- While the parser argument can be arbitrary, the intent is it recognises a single character.
+    takeBoundedString: seq1 of char * PARSER * nat * nat -> PARSER
+    takeBoundedString(lbl, parser, min, max) == label(lbl, concat(iterate(parser, min, max)))
+    pre min <= max;
+
+    -- Recognise characters in the source till a specified token is reached.
+    -- If an optional parser is specified, use it to parse the recognised string.
+    takeUpto: seq1 of char * [PARSER] +> PARSER
+    takeUpto(word, parser) ==
         lambda source : SOURCE &
             cases Seq`indexOfSeqOpt[char](word, source):
                 nil   -> mk_PARSED(mk_ERROR(word ^ " not found"), source),
-                index -> mk_PARSED(mk_TREE(nil, [ source(i) | i in set {1,...,index-1} ]), [ source(i) | i in set {index,...,len source} ])
+                index -> let recognised = [ source(i) | i in set {1,...,index-1} ],
+                             remainder = [ source(i) | i in set {index,...,len source} ] in
+                             if parser = nil
+                                 then mk_PARSED(mk_TREE(nil, recognised), remainder)
+                                 else let mk_PARSED(tree, rest) = parser(recognised) in
+                                          cases tree:
+                                              mk_ERROR(-)  -> mk_PARSED(mk_ERROR("unrecognised"), source),
+                                              mk_TREE(-,-) -> if Char`isWhiteSpaces(rest)
+                                                                  then mk_PARSED(tree, remainder)
+                                                                  else mk_PARSED(mk_ERROR("excess"), rest^remainder)
+                                              end
+                end;
+
+    -- Recognise characters in the source till one of a specified sequence of tokens is reached.
+    -- If no such token is found, and an optional terminator is provided, recognise characters up to the terminator.
+    -- If a sequence is recognised and an optional parser is specified, use it to parse the recognised string.
+    takeUptoOneOf: seq of seq1 of char * [seq1 of char] * [PARSER] +> PARSER
+    takeUptoOneOf(tokens, term, parser) ==
+        lambda source : SOURCE &
+            cases tokens:
+                []         -> if term = nil
+                              then mk_PARSED(mk_ERROR("not found"), source)
+                              else takeUpto(term, parser)(source),
+                [tok]^rest -> let mk_PARSED(tree, source1) = takeUpto(tok, parser)(source) in
+                                  cases tree:
+                                      mk_ERROR(-)  -> takeUptoOneOf(rest, term, parser)(source),
+                                      mk_TREE(-,-) -> mk_PARSED(tree, source1)
+                                      end
                 end;
 
     /*
@@ -78,8 +160,8 @@ functions
 
     -- Get the character content.
     getContent: LABEL * TREE +> seq of char
-    getContent(lbl, mk_TREE(label,content)) == content
-    pre (lbl = nil or lbl = label) and is_(content, seq of char);
+    getContent(lbl, mk_TREE(tlabel,content)) == content
+    pre (lbl = nil or lbl = tlabel) and is_(content, seq of char);
 
     -- Get the character content as a natural number.
     getContentNat: LABEL * TREE +> nat
@@ -88,8 +170,8 @@ functions
 
     -- Get the sequence of sub trees.
     getTrees: LABEL * TREE +> seq of TREE
-    getTrees(lbl, mk_TREE(label,content)) == content
-    pre (lbl = nil or lbl = label) and is_(content, seq of TREE);
+    getTrees(lbl, mk_TREE(tlabel,content)) == content
+    pre (lbl = nil or lbl = tlabel) and is_(content, seq of TREE);
 
     -- Get the only sub tree.
     getTree: LABEL * TREE +> TREE
@@ -98,7 +180,7 @@ functions
 
     -- Is a tree empty (has not label or content)?
     isEmpty : TREE +> bool
-    isEmpty(mk_TREE(label,content)) == label = nil and content = [];
+    isEmpty(mk_TREE(tlabel,content)) == tlabel = nil and content = [];
 
     /*
        Convenience functions for flattening out parse trees:
