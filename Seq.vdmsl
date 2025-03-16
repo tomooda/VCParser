@@ -6,32 +6,32 @@
 */
 module Seq
 imports from Numeric all
-exports functions sum: seq of real +> real
-                  prod: seq of real +> real
-                  min: seq1 of real +> real
-                  max: seq1 of real +> real
-                  inSeq[@a]: @a * seq of @a +> bool
-                  indexOf[@a]: @a * seq1 of @a +> nat1
-                  indexOfSeq[@a]: seq1 of @a * seq1 of @a +> nat1
-                  indexOfSeqOpt[@a]: seq1 of @a * seq1 of @a +> [nat1]
-                  numOccurs[@a]: @a * seq of @a +> nat
-                  permutation[@a]: seq of @a * seq of @a +> bool
-                  preSeq[@a]: seq of @a * seq of @a +> bool
-                  postSeq[@a]: seq of @a * seq of @a +> bool
-                  subSeq[@a]: seq of @a * seq of @a +> bool
-                  replicate[@a]: nat * @a +> seq of @a
-                  padLeft[@a]: seq of @a * @a * nat +> seq of @a
-                  padRight[@a]: seq of @a * @a * nat +> seq of @a
-                  padCentre[@a]: seq of @a * @a * nat +> seq of @a
-                  dropWhile[@a]: (@a +> bool) * seq of @a +> seq of @a
-                  xform[@a,@b]: (@a +> @b) * seq of @a +> seq of @b
-                  fold[@a]: (@a * @a +> @a) * @a * seq of @a +> @a
-                  fold1[@a]: (@a * @a +> @a) * seq1 of @a +> @a
-                  zip[@a,@b]: seq of @a * seq of @b +> seq of (@a * @b)
-                  unzip[@a,@b]: seq of (@a * @b) +> seq of @a * seq of @b
-                  isDistinct[@a]: seq of @a +> bool
-                  app[@a]: seq of @a * seq of @a +> seq of @a
-                  setOf[@a]: seq of @a +> set of @a
+exports functions sum: seq of real +> real;
+                  prod: seq of real +> real;
+                  min: seq1 of real +> real;
+                  max: seq1 of real +> real;
+                  inSeq[@a]: @a * seq of @a +> bool;
+                  indexOf[@a]: @a * seq1 of @a +> nat1;
+                  indexOfSeq[@a]: seq1 of @a * seq1 of @a +> nat1;
+                  indexOfSeqOpt[@a]: seq1 of @a * seq1 of @a +> [nat1];
+                  numOccurs[@a]: @a * seq of @a +> nat;
+                  permutation[@a]: seq of @a * seq of @a +> bool;
+                  preSeq[@a]: seq of @a * seq of @a +> bool;
+                  postSeq[@a]: seq of @a * seq of @a +> bool;
+                  subSeq[@a]: seq of @a * seq of @a +> bool;
+                  replicate[@a]: nat * @a +> seq of @a;
+                  padLeft[@a]: seq of @a * @a * nat +> seq of @a;
+                  padRight[@a]: seq of @a * @a * nat +> seq of @a;
+                  padCentre[@a]: seq of @a * @a * nat +> seq of @a;
+                  dropWhile[@a]: (@a +> bool) * seq of @a +> seq of @a;
+                  xform[@a,@b]: (@a +> @b) * seq of @a +> seq of @b;
+                  fold[@a]: (@a * @a +> @a) * @a * seq of @a +> @a;
+                  fold1[@a]: (@a * @a +> @a) * seq1 of @a +> @a;
+                  zip[@a,@b]: seq of @a * seq of @b +> seq of (@a * @b);
+                  unzip[@a,@b]: seq of (@a * @b) +> seq of @a * seq of @b;
+                  isDistinct[@a]: seq of @a +> bool;
+                  app[@a]: seq of @a * seq of @a +> seq of @a;
+                  setOf[@a]: seq of @a +> set of @a;
                   format[@a]: (@a +> seq of char) * seq of char * seq of @a +> seq of char
 
 definitions

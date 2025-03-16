@@ -6,14 +6,14 @@
 module Numeric
 imports from Char all,
         from Seq all
-exports functions min: real * real +> real
-                  max: real * real +> real
-                  formatNat: nat +> seq of Char`Digit
-                  decodeNat: seq1 of Char`Digit +> nat
-                  fromChar: Char`Digit +> nat
-                  toChar: nat +> Char`Digit
-                  zeroPad: nat * nat1 +> seq of Char`Digit
-                  add: real * real +> real
+exports functions min: real * real +> real;
+                  max: real * real +> real;
+                  formatNat: nat +> seq of Char`Digit;
+                  decodeNat: seq1 of Char`Digit +> nat;
+                  fromChar: Char`Digit +> nat;
+                  toChar: nat +> Char`Digit;
+                  zeroPad: nat * nat1 +> seq of Char`Digit;
+                  add: real * real +> real;
                   mult: real * real +> real
 
 definitions
