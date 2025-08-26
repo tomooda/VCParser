@@ -159,8 +159,7 @@ values
         nonterminal]);
     
     times = transtree(
-        lambda tree : TREE &
-            let mk_TREE(-, [mk_TREE(-, n), -, mk_TREE(-, string)]) = tree in
+        lambda mk_TREE(-, [mk_TREE(-, n), -, mk_TREE(-, string), -]) : TREE &
                 mk_TREE(nil, "VCParser`concat(VCParser`series(["^string^conc([", "^string | i in set {2, ..., atoi(n)}])^"]))"),
         trimBlanks(series([
             concat(series([digit, concat(star(digit))])),
@@ -170,8 +169,7 @@ values
     ebnf1 = either([times, ebnf0]);
     
     except = transtree(
-        lambda tree : TREE &
-            let mk_TREE(-, [mk_TREE(-, string1), -, mk_TREE(-, string2)]) = tree in
+        lambda mk_TREE(-, [mk_TREE(-, string1), -, mk_TREE(-, string2)]) : TREE &
                 mk_TREE(nil, "VCParser`concat(VCParser`series([VCParser`fail("^string2^"), "^string1^"]))"),
         trimBlanks(series([
             ebnf1,
@@ -180,8 +178,7 @@ values
     ebnf2 = either([except, ebnf1]);
 
     concatenate = transtree(
-        lambda tree : TREE &
-            let mk_TREE(-, [mk_TREE(-, string1), mk_TREE(-, trees)]) = tree in
+        lambda mk_TREE(-, [mk_TREE(-, string1), mk_TREE(-, trees)]) : TREE &
                 mk_TREE(nil, "VCParser`concat(VCParser`series(["^
                 string1^
                 conc([", "^trees(i).contents | i in set inds trees])^
@@ -194,8 +191,7 @@ values
     ebnf3 = either([concatenate, ebnf2]);
 
     separate = transtree(
-        lambda tree : TREE &
-            let mk_TREE(-, [mk_TREE(-, string1), mk_TREE(-, trees)]) = tree in
+        lambda mk_TREE(-, [mk_TREE(-, string1), mk_TREE(-, trees)]) : TREE &
                 mk_TREE(nil, "VCParser`either(["^
                 string1^
                 conc([", "^trees(i).contents | i in set inds trees])^
@@ -208,8 +204,7 @@ values
     ebnf4 = either([separate, ebnf3]);
     
     define = transtree(
-        lambda t : TREE &
-            let mk_TREE(-, [mk_TREE(-, left), -, mk_TREE(-, right), -]) = t in
+        lambda mk_TREE(-, [mk_TREE(-, left), -, mk_TREE(-, right), -]) : TREE &
                 mk_TREE(left, 
                     "\t"^left^" : VCParser`SOURCE->VCParser`PARSED\n\t"^left^"(string) == EBNFParser`keepNode("^
                     (if hd left in set UPPER then "EBNFParser`clean(" else "") ^
@@ -265,9 +260,9 @@ functions
         rest^['\n'] -> trimBlanksString(rest),
         others -> string
         end
-    measure measure_trimBlanksString;
-    measure_trimBlanksString : seq of char -> nat
-    measure_trimBlanksString(string) == len(string);
+    measure m_trimBlanksString;
+    m_trimBlanksString : seq of char -> nat
+    m_trimBlanksString(string) == len(string);
 
     transtext : (seq of char ->seq of char) * PARSER -> PARSER
     transtext(modifier, parser) == trans(
@@ -282,8 +277,9 @@ functions
         [] -> 0,
         others -> atoi([string(i) | i in set {1,...,len string -1}]) * 10 + {'0' |-> 0, '1' |-> 1, '2' |-> 2, '3' |-> 3, '4' |-> 4, '5' |-> 5, '6' |-> 6, '7' |-> 7, '8' |-> 8, '9'|-> 9}(string(len string))
         end
-    measure measure_atoi;
-    measure_atoi : seq of char -> nat
-    measure_atoi(string) == len string;
+    pre forall c in seq string & c in set {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
+    measure m_atoi;
+    m_atoi : seq of char -> nat
+    m_atoi(string) == len string;
 
 end EBNFParser
